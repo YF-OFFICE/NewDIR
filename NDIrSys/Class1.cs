@@ -1,6 +1,8 @@
-﻿using Exiled.API.Features;
+﻿using Exiled.API.Extensions;
+using Exiled.API.Features;
 using Exiled.API.Interfaces;
 using Exiled.Events.EventArgs.Player;
+using MEC;
 using NewXp.IniApi;
 using System;
 using System.Collections.Generic;
@@ -9,6 +11,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Pl = Exiled.Events.Handlers.Player;
+using SE = Exiled.Events.Handlers.Server;
 
 namespace NDIrSys
 {
@@ -18,6 +22,8 @@ namespace NDIrSys
         public bool Debug { get; set; } = false;
         [Description("存储路径")]
         public string Pach { get; set; } = "C:\\DIRSave";
+        [Description("彩色称号更新频率")]
+        public int each { get; set; } = 1;
 
     }
     public class Plugin : Plugin<Config>
@@ -26,10 +32,59 @@ namespace NDIrSys
         public override Version Version => new Version(1, 0, 0);
         public override string Name => "Newdir";
         public Plugin plugin;
+        public static List<Player> rainbw = new List<Player>();
+        public static string[] FMoreColo = new string[]
+        {
+            "pink",
+            "silver",
+            "cyan",
+            "aqua",
+            "tomato",
+            "yellow",
+            "magenta",
+            "orange",
+            "lime",
+            "green",
+            "red",
+            "brown",
+            "red",
+                "orange",
+                "yellow",
+                "green",
+                "blue_green",
+                "magenta",
+                "pink",
+                "brown",
+                "silver",
+             "light_green",
+           "crimson",
+         "cyan",
+       "aqua",
+           "deep_pink",
+                     "tomato",
+                             "blue_green",
+                                         "lime",
+                                 "emerald",
+                         "carmine",
+                   "nickel",
+              "mint",
+    "army_green",
+                                   "pumpkin"
+        };
+        public static CoroutineHandle Handle = new CoroutineHandle();
         public override void OnEnabled()
         {
             plugin = this;
-            Log.Info("加载插件中");
+            
+            if (!Directory.Exists(Config.Pach))
+            {
+                Directory.CreateDirectory(Config.Pach);
+                Log.Warn("已创建存储文件夹" +Config.Pach);
+            
+            }
+            Pl.Verified += this.Join;
+            SE.WaitingForPlayers += this.wiat;
+            Log.Info("bingo加载完成");
             base.OnEnabled();
         }
         public override void OnDisabled()
@@ -38,20 +93,77 @@ namespace NDIrSys
             Log.Info("插件关闭了");
             base.OnDisabled();
         }
-        //玩家加入时间
+        public void wiat()
+        {
+            if (Handle.IsRunning)
+            {
+                Timing.KillCoroutines(Handle);
+                Handle = Timing.RunCoroutine(Rainbw());
+            }
+            else
+            {
+                Handle = Timing.RunCoroutine(Rainbw());
+            }
+        }
         public void Join(VerifiedEventArgs ev)
         {
-            if (!File.Exists(Config.Pach+"\\"+ev.Player.UserId+".ini"))
+            if (!File.Exists(Config.Pach + "\\" + ev.Player.UserId + ".ini"))
             {
-                IniFile iniFile = new IniFile(Config.Pach + "\\" + ev.Player.UserId + ".ini");
+                IniFile iniFile = new IniFile();
                 iniFile.Section("DIR").Set("称号", "空", "称号");
                 iniFile.Section("DIR").Set("称号颜色", "空");
                 iniFile.Section("DIR").Set("管理权限组", "空", "默认分配的权限组");
-                iniFile.Section("DIR").Set("QQ", "空");
-                iniFile.Section("DIR").Set("等级", "否");
-                iniFile.Section("DIR").Set("经验", "否", "是否给予管理");
+                iniFile.Save(Config.Pach + "\\" + ev.Player.UserId + ".ini");
+            }
+            else
+            {
+                IniFile iniFile = new IniFile(Config.Pach + "\\" + ev.Player.UserId + ".ini");
+                if (iniFile.Section("DIR").Get("管理权限组") == "空")
+                {
+                    if (iniFile.Section("DIR").Get("称号") != "空")
+                    {
+                        ev.Player.RankName = iniFile.Section("DIR").Get("称号");
+                        switch (iniFile.Section("DIR").Get("称号颜色"))
+                        {
+                            case "rainbow":
+                                rainbw.Add(ev.Player);
+                                break;
+                            default:
+                                ev.Player.RankColor = iniFile.Section("DIR").Get("称号颜色");
+                                break;
+                        }
+                    }
 
-
+                }
+                else
+                {
+                    ev.Player.GroupName = iniFile.Section("DIR").Get("管理权限组");
+                    if (iniFile.Section("DIR").Get("称号") != "空")
+                    {
+                        ev.Player.RankName = iniFile.Section("DIR").Get("称号");
+                        switch (iniFile.Section("DIR").Get("称号颜色"))
+                        {
+                            case "rainbow":
+                                rainbw.Add(ev.Player);
+                                break;
+                            default:
+                                ev.Player.RankColor = iniFile.Section("DIR").Get("称号颜色");
+                                break;
+                        }
+                    }
+                }
+            }
+        
+        }
+        public IEnumerator<float> Rainbw()
+        {
+            while (true)
+            {
+                foreach (var item in rainbw)
+                {
+                    item.RankColor = FMoreColo.GetRandomValue();
+                }
+                yield return Timing.WaitForSeconds(Config.each);
             }
         
         }
