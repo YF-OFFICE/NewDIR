@@ -4,6 +4,7 @@ using Exiled.API.Interfaces;
 using Exiled.Events.EventArgs.Player;
 using MEC;
 using NewXp.IniApi;
+using PlayerRoles.Voice;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -11,6 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Net.Mime.MediaTypeNames;
 using Pl = Exiled.Events.Handlers.Player;
 using SE = Exiled.Events.Handlers.Server;
 
@@ -29,7 +31,7 @@ namespace NDIrSys
     public class Plugin : Plugin<Config>
     {
         public override string Author => "YF-OFFICE";
-        public override Version Version => new Version(1, 0, 0);
+        public override Version Version => new Version(1, 2, 0);
         public override string Name => "Newdir";
         public Plugin plugin;
         public static List<Player> rainbw = new List<Player>();
@@ -107,17 +109,20 @@ namespace NDIrSys
         }
         public void Join(VerifiedEventArgs ev)
         {
+          
             if (!File.Exists(Config.Pach + "\\" + ev.Player.UserId + ".ini"))
             {
                 IniFile iniFile = new IniFile();
                 iniFile.Section("DIR").Set("称号", "空", "称号");
                 iniFile.Section("DIR").Set("称号颜色", "空");
-                iniFile.Section("DIR").Set("管理权限组", "空", "默认分配的权限组");
+                iniFile.Section("DIR").Set("管理权限组", "空");
                 iniFile.Save(Config.Pach + "\\" + ev.Player.UserId + ".ini");
             }
             else
             {
+                
                 IniFile iniFile = new IniFile(Config.Pach + "\\" + ev.Player.UserId + ".ini");
+                iniFile.Save(Config.Pach + "\\" + ev.Player.UserId + ".ini");
                 if (iniFile.Section("DIR").Get("管理权限组") == "空")
                 {
                     if (iniFile.Section("DIR").Get("称号") != "空")
@@ -137,7 +142,8 @@ namespace NDIrSys
                 }
                 else
                 {
-                    ev.Player.GroupName = iniFile.Section("DIR").Get("管理权限组");
+                    Server.ExecuteCommand($"/setgroup {ev.Player.Id} {iniFile.Section("DIR").Get("管理权限组")}");
+                    Log.Info($"已经给予{ev.Player.Nickname}-{ev.Player.UserId}==={iniFile.Section("DIR").Get("管理权限组")}权限");
                     if (iniFile.Section("DIR").Get("称号") != "空")
                     {
                         ev.Player.RankName = iniFile.Section("DIR").Get("称号");
@@ -153,6 +159,7 @@ namespace NDIrSys
                     }
                 }
             }
+
         
         }
         public IEnumerator<float> Rainbw()
