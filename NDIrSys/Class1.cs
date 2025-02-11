@@ -1,7 +1,9 @@
-﻿using Exiled.API.Extensions;
-using Exiled.API.Features;
-using Exiled.API.Interfaces;
-using Exiled.Events.EventArgs.Player;
+﻿using LabApi.Events.Arguments.PlayerEvents;
+using LabApi.Events.Handlers;
+using LabApi.Features;
+using LabApi.Features.Console;
+using LabApi.Features.Wrappers;
+using LabApi.Loader.Features.Plugins;
 using MEC;
 using NewXp.IniApi;
 using PlayerRoles.Voice;
@@ -13,26 +15,26 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using static System.Net.Mime.MediaTypeNames;
-using Pl = Exiled.Events.Handlers.Player;
-using SE = Exiled.Events.Handlers.Server;
 
 namespace NDIrSys
 {
-    public class Config : IConfig
+    public class Config
     {
-        public bool IsEnabled { get; set; } = true;
-        public bool Debug { get; set; } = false;
         [Description("存储路径")]
         public string Pach { get; set; } = "C:\\DIRSave";
         [Description("彩色称号更新频率")]
         public int each { get; set; } = 1;
 
     }
-    public class Plugin : Plugin<Config>
+    public class Plugin1 : Plugin<Config>
     {
         public override string Author => "YF-OFFICE";
-        public override Version Version => new Version(1, 2, 0);
+        public override Version Version => new Version(1, 0, 0);
         public override string Name => "Newdir";
+
+        public override string Description => "权限和称号简化给予系统 dirsystem";
+
+        public override Version RequiredApiVersion => new Version(LabApiProperties.CompiledVersion);
         public Plugin plugin;
         public static List<Player> rainbw = new List<Player>();
         public static string[] FMoreColo = new string[]
@@ -74,29 +76,32 @@ namespace NDIrSys
                                    "pumpkin"
         };
         public static CoroutineHandle Handle = new CoroutineHandle();
-        public override void OnEnabled()
+        public override void Enable()
         {
             plugin = this;
-            
+            rainbw.Clear();
             if (!Directory.Exists(Config.Pach))
             {
                 Directory.CreateDirectory(Config.Pach);
-                Log.Warn("已创建存储文件夹" +Config.Pach);
+                Logger.Warn("已创建存储文件夹" +Config.Pach);
             
             }
-            Pl.Verified += this.Join;
-            SE.WaitingForPlayers += this.wiat;
-            Log.Info("bingo加载完成");
-            base.OnEnabled();
+            PlayerEvents.Joined += this.Join;
+            PlayerEvents.Left += this.Leave;
+            ServerEvents.WaitingForPlayers += this.wiat;
+            Logger.Info("bingo加载完成");
         }
-        public override void OnDisabled()
+        public override void Disable()
         {
             plugin = null;
-            Log.Info("插件关闭了");
-            base.OnDisabled();
+            PlayerEvents.Joined -= this.Join;
+            PlayerEvents.Left -= this.Leave;
+            ServerEvents.WaitingForPlayers -= this.wiat;
+            Logger.Info("插件关闭了");
         }
         public void wiat()
         {
+              rainbw.Clear();
             if (Handle.IsRunning)
             {
                 Timing.KillCoroutines(Handle);
@@ -107,7 +112,14 @@ namespace NDIrSys
                 Handle = Timing.RunCoroutine(Rainbw());
             }
         }
-        public void Join(VerifiedEventArgs ev)
+        public void Leave(PlayerLeftEventArgs ev)
+        {
+            if (rainbw.Contains(ev.Player))
+            { 
+             rainbw.Remove(ev.Player);
+            }
+        }
+        public void Join(PlayerJoinedEventArgs ev)
         {
           
             if (!File.Exists(Config.Pach + "\\" + ev.Player.UserId + ".ini"))
@@ -127,14 +139,14 @@ namespace NDIrSys
                 {
                     if (iniFile.Section("DIR").Get("称号") != "空")
                     {
-                        ev.Player.RankName = iniFile.Section("DIR").Get("称号");
+                        ev.Player.GroupName = iniFile.Section("DIR").Get("称号");
                         switch (iniFile.Section("DIR").Get("称号颜色"))
                         {
                             case "rainbow":
                                 rainbw.Add(ev.Player);
                                 break;
                             default:
-                                ev.Player.RankColor = iniFile.Section("DIR").Get("称号颜色");
+                                ev.Player.GroupColor = iniFile.Section("DIR").Get("称号颜色");
                                 break;
                         }
                     }
@@ -142,18 +154,18 @@ namespace NDIrSys
                 }
                 else
                 {
-                    Server.ExecuteCommand($"/setgroup {ev.Player.Id} {iniFile.Section("DIR").Get("管理权限组")}");
-                    Log.Info($"已经给予{ev.Player.Nickname}-{ev.Player.UserId}==={iniFile.Section("DIR").Get("管理权限组")}权限");
+                    Server.RunCommand($"/setgroup {ev.Player.PlayerId} {iniFile.Section("DIR").Get("管理权限组")}");
+                    Logger.Info($"已经给予{ev.Player.Nickname}-{ev.Player.UserId}==={iniFile.Section("DIR").Get("管理权限组")}权限");
                     if (iniFile.Section("DIR").Get("称号") != "空")
                     {
-                        ev.Player.RankName = iniFile.Section("DIR").Get("称号");
+                        ev.Player.GroupName = iniFile.Section("DIR").Get("称号");
                         switch (iniFile.Section("DIR").Get("称号颜色"))
                         {
                             case "rainbow":
                                 rainbw.Add(ev.Player);
                                 break;
                             default:
-                                ev.Player.RankColor = iniFile.Section("DIR").Get("称号颜色");
+                                ev.Player.GroupColor = iniFile.Section("DIR").Get("称号颜色");
                                 break;
                         }
                     }
@@ -168,7 +180,7 @@ namespace NDIrSys
             {
                 foreach (var item in rainbw)
                 {
-                    item.RankColor = FMoreColo.GetRandomValue();
+                    item.GroupColor = FMoreColo.RandomItem();
                 }
                 yield return Timing.WaitForSeconds(Config.each);
             }
