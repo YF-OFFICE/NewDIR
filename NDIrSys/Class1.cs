@@ -3,6 +3,7 @@ using LabApi.Events.Handlers;
 using LabApi.Features;
 using LabApi.Features.Console;
 using LabApi.Features.Wrappers;
+using LabApi.Loader;
 using LabApi.Loader.Features.Plugins;
 using MEC;
 using NewXp.IniApi;
@@ -26,7 +27,7 @@ namespace NDIrSys
         public int each { get; set; } = 1;
 
     }
-    public class Plugin1 : Plugin<Config>
+    public class Plugin1 : Plugin
     {
         public override string Author => "YF-OFFICE";
         public override Version Version => new Version(1, 0, 0);
@@ -36,6 +37,7 @@ namespace NDIrSys
 
         public override Version RequiredApiVersion => new Version(LabApiProperties.CompiledVersion);
         public Plugin plugin;
+        public Config Config;
         public static List<Player> rainbw = new List<Player>();
         public static string[] FMoreColo = new string[]
         {
@@ -76,6 +78,11 @@ namespace NDIrSys
                                    "pumpkin"
         };
         public static CoroutineHandle Handle = new CoroutineHandle();
+        public override void LoadConfigs()
+        {
+            base.LoadConfigs();
+            Config = this.LoadConfig<Config>("Newdir.yml");
+        }
         public override void Enable()
         {
             plugin = this;
